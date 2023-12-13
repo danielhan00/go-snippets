@@ -5,16 +5,12 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/danielhan00/snippetbox/pkg/forms"
 	"github.com/danielhan00/snippetbox/pkg/models"
 )
 
 // Handles the home case
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
-	// handle "/" so that it is not a catch all
-	if r.URL.Path != "/" {
-		app.notFound(w)
-		return
-	}
 
 	s, err := app.snippets.Latest()
 	if err != nil {
@@ -28,7 +24,7 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	id, err := strconv.Atoi(r.URL.Query().Get(":id"))
 	if err != nil || id < 1 {
 		http.NotFound(w, r)
 		return
@@ -49,24 +45,34 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
+	app.render(w, r, "create.page.tmpl", nil)
+
+}
+
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
-	// restrict this route to only POST request
-	if r.Method != "POST" {
-		w.Header().Set("Allow", "POST")
-		app.clientError(w, http.StatusMethodNotAllowed)
+
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
 		return
 	}
 
-	title := "O snail"
-	content := "O snail and its contents"
-	expires := "7"
+	form := forms.New(r.PostForm)
+	form.Required("title", "content", "expires")
+	form.MaxLength("title", 100)
+	form.PermittedValues("expires", "365", "7", "1")
 
-	id, err := app.snippets.Insert(title, content, expires)
+	if !form.Valid() {
+		app.render(w, r, "create.page.tmpl", &templateData{Form: form})
+	}
+
+	id, err := app.snippets.Insert(form.Get("title"), form.Get("content"), form.Get("expires"))
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
 	// redirect user to the created snippet route
-	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/snippet/%d", id), http.StatusSeeOther)
 }

@@ -2,9 +2,11 @@ package main
 
 import (
 	"html/template"
+
 	"path/filepath"
 	"time"
 
+	"github.com/danielhan00/snippetbox/pkg/forms"
 	"github.com/danielhan00/snippetbox/pkg/models"
 )
 
@@ -12,6 +14,7 @@ type templateData struct {
 	CurrentYear int
 	Snippet     *models.Snippet
 	Snippets    []*models.Snippet
+	Form        *forms.Form
 }
 
 func humanDate(t time.Time) string {
